@@ -92,9 +92,9 @@ rsbst <- function(p, pg) {
   x <- matrix(rnorm(n*p), nr=p)
   out <- t.testv(x, 10, 10)
   indgene <- order(out$pval)[1:pg]
-  ccp.tr <- ccp.train(x[indgene, ], out$t[indgene])
+  ccp.tr <- ccp.train(x[indgene, , drop = FALSE], out$t[indgene])
   ccp.pr <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:20]),
-                        out$t[indgene], x[indgene, ])
+                        out$t[indgene], x[indgene, , drop = FALSE])
   err <- sum(abs(ccp.pr - c(rep(1, 10), rep(2, 10))))
   err
 }
@@ -107,7 +107,7 @@ loocv1 <- function(p, pg) {
   indgene <- order(out$pval)[1:pg]
   ccp.pr <- rep(NA, n)
   for(j in 1:n) {
-    ccp.tr <- ccp.train(x[indgene, -j], out$t[indgene])
+    ccp.tr <- ccp.train(x[indgene, -j, drop  = FALSE], out$t[indgene])
     if (j <= 10) {
       ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
                                out$t[indgene], x[indgene, j, drop = F])
@@ -133,7 +133,7 @@ loocv2 <- function(p, pg) {
     }
     out <- t.testv(x[, -j], n1, n2)
     indgene <- order(out$pval)[1:pg]
-    ccp.tr <- ccp.train(x[indgene, -j], out$t[indgene])
+    ccp.tr <- ccp.train(x[indgene, -j, drop = FALSE], out$t[indgene])
     if (j <= 10) {
       ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
                                out$t[indgene], x[indgene, j, drop = F])

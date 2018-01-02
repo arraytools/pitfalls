@@ -1,7 +1,9 @@
 ---
 title: "Pitfalls in the use of DNA Microarray Data for Diagnostic and Prognostic Classification, R. Simon et al 2003"
 author: "MC Li"
-output: html_document
+output:
+  html_document:
+    toc: true
 ---
 
 ```{r setup, include=FALSE}
@@ -102,14 +104,15 @@ err
 # 8
 ```
 
-## 2000 Simulated Data Sets
+
+## 2000 Simulated Data Sets p = 6000, pg = 10
 
 We can wrap the above scripts into 3 functions: rsbst(), loocv1() and loocv2(). rsbst() represents resubstitution method, loocv1() denotes LOOCV after gene selection and loocv2() denotes LOOCV before gene selection.
 
 We draw a bar plot with X-axis = number of misclassifications, Y-axis = proportion of simulated data sets.
 
 ```{r}
-source("util.R")
+source("pitfalls.R")
 nsim <- 2000
 p <- 6000
 pg <- 10  # select 10 genes
@@ -135,55 +138,138 @@ outall
 #[2,] 1946 53  1  0  0   0   0   0   0   0   0   0   0   0   0   0  0  0  0  0  0
 #[3,]    5 15 37 51 64 100 110 154 138 129 136 162 160 157 131 128 98 95 66 49 15
 
+# base R plot version
 png("outall.png", width=800, height=480)
-barplot(outall, beside=TRUE, 
+barplot(outall/nsim, beside=TRUE, 
         col=c("aquamarine3", "coral", "blue"), 
-        names.arg=as.character(0:20))
+        names.arg=as.character(0:20),
+        xlab = "Number of misclassifications", 
+        ylab = "Proportion of simulated data sets")
 
-legend(10, 1500, c("Resubstition", "LOOCV after", "LOOCV before"),
+
+legend("top", c("Resubstition", "LOOCV after", "LOOCV before"),
        col=c("aquamarine3", "coral", "blue"), pch=15)
+grid(NA, 10, lwd = 2)
+dev.off()
+
+# ggplot2 version
+library(ggplot2)
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outall[1, ]/nsim, outall[2, ]/nsim, outall[3, ]/nsim)
+)
+dat1
+png("outall_gg.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0), limits = c(0,1)) 
 dev.off()
 ```
 
-![](outall.png)
 
-## Observations
+![](outall_gg.png)
+
+Observations
 
 Note that under the null hypothesis, the estimated error rates for simulated datasets should center around 0.5 (i.e. 10 misclassifications of 20).
 
 * Resubstitution method is biased for small datasets. About 98% (=1973/2000) of the simulated datasets resulting in zero misclassifications
 * LOOCV after gene selection does little to correct the bias, with 97% (=1946/2000) of simulated datasets still resulting in zero misclassifications.
 
-## Low Dimension Case
+
+## Low Dimension Case p=5, pg=1
 
 ```{r}
-source("util.R")
+source("pitfalls.R")
 nsim <- 2000
 p <- 5
-pg <- 2  # select 2 genes
+pg <- 1  # select 1 gene
 
 set.seed(1234)
-out4 <- replicate(nsim, loocv1(p, pg))
+out4 <- replicate(nsim, rsbst(p, pg))
 
 set.seed(1234)
-out5 <- replicate(nsim, loocv2(p, pg))
-save(out4, out5, file = "outlowd.rda")
-load("outlowd.rda")
+out5 <- replicate(nsim, loocv1(p, pg))
+
+set.seed(1234)
+out6 <- replicate(nsim, loocv2(p, pg))
+save(out4, out5, out6, file = "outlowd1.rda")
+load("outlowd1.rda")
 outlowd <- rbind(table(factor(out4, levels = as.character(0:20))),
-                table(factor(out5, levels = as.character(0:20))))
+                 table(factor(out5, levels = as.character(0:20))),
+                 table(factor(out6, levels = as.character(0:20))))
 outlowd
-#     0 1 2  3   4   5   6   7   8   9  10  11  12  13  14 15 16 17 18 19 20
-#[1,] 0 2 8 45 138 314 429 469 346 163  59  22   3   2   0  0  0  0  0  0  0
-#[2,] 0 1 1  5  35  83 129 190 219 221 230 201 213 127 124 93 56 35 22 11  4
+#     0 1 2  3  4   5   6   7   8   9  10  11  12  13  14  15 16 17 18 19 20
+#[1,] 0 0 5 24 83 236 384 469 436 228 105  22   8   0   0   0  0  0  0  0  0
+#[2,] 0 0 3 16 61 209 366 489 439 265 114  27   7   3   1   0  0  0  0  0  0
+#[3,] 0 0 2 15 48 104 192 205 226 178 165 167 147 143 117 109 79 46 34 19  4
 
-png("lowdim.png", width=800, height=480)
-barplot(outlowd, beside=TRUE, 
-        col=c("coral", "blue"), 
-        names.arg=as.character(0:20))
-
-legend("topright", c("LOOCV after", "LOOCV before"),
-       col=c("coral", "blue"), pch=15)
+# ggplot2 version
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outlowd[1, ]/nsim, outlowd[2, ]/nsim, outlowd[3, ]/nsim)
+)
+png("lowdim1.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0)) + 
+    ggtitle(sprintf("(# of total genes, # of selected genes) = (%d, %d)", p, pg))
 dev.off()
 ```
 
-![](lowdim.png)
+![](lowdim1.png)
+It is strange the LOOCV before gene selection method is also biased.
+
+
+## Low Dimension Case p=5, pg=5
+
+Let's see what happened if the number of total genes equals to the number of selected genes.
+
+```{r}
+source("pitfalls.R")
+nsim <- 2000
+p <- 5
+pg <- p  
+
+set.seed(1234)
+out4 <- replicate(nsim, rsbst(p, pg))
+
+set.seed(1234)
+out5 <- replicate(nsim, loocv1(p, pg))
+
+set.seed(1234)
+out6 <- replicate(nsim, loocv2(p, pg))
+save(out4, out5, out6, file = "outlowd5.rda")
+load("outlowd5.rda")
+outlowd <- rbind(table(factor(out4, levels = as.character(0:20))),
+                 table(factor(out5, levels = as.character(0:20))),
+                 table(factor(out6, levels = as.character(0:20))))
+outlowd
+#     0 1  2   3   4   5   6   7   8   9  10  11  12  13 14 15 16 17 18 19 20
+#[1,] 0 3 29 104 240 380 441 378 250 120  44   8   3   0  0  0  0  0  0  0  0
+#[2,] 0 2 18  94 195 366 436 405 282 138  50  11   3   0  0  0  0  0  0  0  0
+#[3,] 0 0  1   8  20  59 100 173 239 268 287 241 180 166 95 67 40 29 15 10  2
+
+# ggplot2 version
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outlowd[1, ]/nsim, outlowd[2, ]/nsim, outlowd[3, ]/nsim)
+)
+png("lowdim5.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0)) + 
+    ggtitle(sprintf("(# of total genes, # of selected genes) = (%d, %d)", p, pg))
+dev.off()
+```
+
+![](lowdim5.png)
