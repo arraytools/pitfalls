@@ -172,7 +172,7 @@ dev.off()
 
 ![](outall_gg.png)
 
-Observations
+Observations:
 
 Note that under the null hypothesis, the estimated error rates for simulated datasets should center around 0.5 (i.e. 10 misclassifications of 20).
 
@@ -224,6 +224,7 @@ dev.off()
 ```
 
 ![](lowdim1.png)
+
 It is strange the LOOCV before gene selection method is also biased.
 
 
