@@ -104,8 +104,8 @@ err
 # 8
 ```
 
-
-## 2000 Simulated Data Sets p = 6000, pg = 10
+## Compound Covariate Predictor
+### High Dimensional Case p = 6000, pg = 10
 
 We can wrap the above scripts into 3 functions: rsbst(), loocv1() and loocv2(). rsbst() represents resubstitution method, loocv1() denotes LOOCV after gene selection and loocv2() denotes LOOCV before gene selection.
 
@@ -180,7 +180,7 @@ Note that under the null hypothesis, the estimated error rates for simulated dat
 * LOOCV after gene selection does little to correct the bias, with 97% (=1946/2000) of simulated datasets still resulting in zero misclassifications.
 
 
-## Low Dimension Case p=5, pg=1
+### Low Dimension Case p=5, pg=1
 
 ```{r}
 source("pitfalls.R")
@@ -228,7 +228,7 @@ dev.off()
 It is strange the LOOCV before gene selection method is also biased.
 
 
-## Low Dimension Case p=5, pg=5
+### Low Dimension Case p=5, pg=5
 
 Let's see what happened if the number of total genes equals to the number of selected genes.
 
@@ -274,3 +274,143 @@ dev.off()
 ```
 
 ![](lowdim5.png)
+
+## Random Forest Predictor
+
+### High Dimensional Case p = 6000, pg = 10
+
+```{r}
+source("pitfalls.R")
+nsim <- 2000
+p <- 6000
+pg <- 10  # select 10 genes
+
+set.seed(1234)
+out1 <- replicate(nsim, rsbst(p, pg, "randomForest"))
+
+set.seed(1234)
+out2 <- replicate(nsim, loocv1(p, pg, "randomForest"))
+
+set.seed(1234)
+out3 <- replicate(nsim, loocv2(p, pg, "randomForest"))
+save(out1, out2, out3, file = "out_rf.rda")
+load("out_rf.rda")
+
+# combine the result together
+outall <- rbind(table(factor(out1, levels = as.character(0:20))),
+                table(factor(out2, levels = as.character(0:20))),
+                table(factor(out3, levels = as.character(0:20))))
+outall
+#        0   1   2   3  4  5   6   7   8   9  10  11  12  13  14  15  16 17 18 19 20
+#[1,] 2000   0   0   0  0  0   0   0   0   0   0   0   0   0   0   0   0  0  0  0  0
+#[2,]  600 846 444 103  6  1   0   0   0   0   0   0   0   0   0   0   0  0  0  0  0
+#[3,]    3  10  26  49 57 95 103 120 129 127 123 151 154 140 179 120 123 87 98 74 32
+
+# ggplot2 version
+library(ggplot2)
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outall[1, ]/nsim, outall[2, ]/nsim, outall[3, ]/nsim)
+)
+dat1
+png("outall_rf.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0), limits = c(0,1)) 
+dev.off()
+```
+
+![](outall_rf.png)
+
+### Low Dimension Case p=5, pg=1
+
+```{r}
+source("pitfalls.R")
+nsim <- 2000
+p <- 5
+pg <- 1  # select 1 gene
+
+set.seed(1234)
+out4 <- replicate(nsim, rsbst(p, pg, "randomForest"))
+
+set.seed(1234)
+out5 <- replicate(nsim, loocv1(p, pg, "randomForest"))
+
+set.seed(1234)
+out6 <- replicate(nsim, loocv2(p, pg, "randomForest"))
+save(out4, out5, out6, file = "outlowd1_rf.rda")
+load("outlowd1_rf.rda")
+outlowd <- rbind(table(factor(out4, levels = as.character(0:20))),
+                 table(factor(out5, levels = as.character(0:20))),
+                 table(factor(out6, levels = as.character(0:20))))
+outlowd
+#        0 1 2  3  4  5   6   7   8   9  10  11  12  13  14 15 16 17 18 19 20
+#[1,] 2000 0 0  0  0  0   0   0   0   0   0   0   0   0   0  0  0  0  0  0  0
+#[2,]    0 1 7 20 38 86 127 173 235 265 272 265 206 135  95 44 24  6  0  1  0
+#[3,]    1 3 3  9 35 51  97 137 170 234 260 275 219 202 147 82 42 25  7  1  0
+
+# ggplot2 version
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outlowd[1, ]/nsim, outlowd[2, ]/nsim, outlowd[3, ]/nsim)
+)
+png("lowdim1_rf.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0)) + 
+    ggtitle(sprintf("(# of total genes, # of selected genes) = (%d, %d)", p, pg))
+dev.off()
+```
+
+![](lowdim1_rf.png)
+
+### Low Dimension Case p=5, pg=5
+
+```{r}
+source("pitfalls.R")
+nsim <- 2000
+p <- 5
+pg <- p  
+
+set.seed(1234)
+out4 <- replicate(nsim, rsbst(p, pg, "randomForest"))
+
+set.seed(1234)
+out5 <- replicate(nsim, loocv1(p, pg, "randomForest"))
+
+set.seed(1234)
+out6 <- replicate(nsim, loocv2(p, pg, "randomForest"))
+save(out4, out5, out6, file = "outlowd5_rf.rda")
+load("outlowd5_rf.rda")
+outlowd <- rbind(table(factor(out4, levels = as.character(0:20))),
+                 table(factor(out5, levels = as.character(0:20))),
+                 table(factor(out6, levels = as.character(0:20))))
+outlowd
+#       0 1 2  3  4  5  6   7   8   9  10  11  12  13  14  15 16 17 18 19 20
+#[1,] 2000 0 0  0  0  0  0   0   0   0   0   0   0   0   0   0  0  0  0  0  0
+#[2,]    0 0 1  7  6 34 75 122 186 205 229 254 231 220 186 101 70 41 21  9  2
+#[3,]    0 0 2 12 14 35 68 112 188 220 249 264 222 226 165 115 58 36  9  5  0
+
+# ggplot2 version
+dat1 <- data.frame(
+    cv = factor(c(rep("Resub", 21), rep("LOOCV After", 21), rep("LOOCV before", 21)), levels = c("Resub", "LOOCV After", "LOOCV before")),
+    mis = factor(rep(0:20, 3)),
+    total = c(outlowd[1, ]/nsim, outlowd[2, ]/nsim, outlowd[3, ]/nsim)
+)
+png("lowdim5_rf.png", width=800, height=480)
+ggplot(data=dat1, aes(x=mis , y=total, fill=cv)) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    xlab("Number of misclassifications") +
+    ylab("Proportion of simulated data sets") +
+    scale_y_continuous(expand = c(0,0)) + 
+    ggtitle(sprintf("(# of total genes, # of selected genes) = (%d, %d)", p, pg))
+dev.off()
+```
+
+![](lowdim5_rf.png)

@@ -72,11 +72,24 @@ t.testv <- function(x, m1=ncol(x), m2=0, var.equal=TRUE) {
 }
 
 ccp.train <- function(x, tt) {
+  # Compute compound covariate values for observations
+  # Input
+  #   x: gene expression (genes x samples) from the training set
+  #   tt: T-statistics for each genes
+  # Output:
+  #   compound covariates
   cc <- apply(x, 2, function(y) sum(tt * y))
   cc
 }
 
 ccp.predict <- function(c1, c2, tt, xnew) {
+  # Prediction using the compound covariate
+  # Input
+  #   c1, c2: mean of compound covariates for class 1 and class 2.
+  #   tt: T-statistics for each genes
+  #   xnew: gene expression (genes x samples) from a test set
+  # Output
+  #   predicted classes for observations in the test set
   cnew <- apply(xnew, 2, function(y) sum(tt * y))
   cmean <- (c1+c2)/2.0
   if (c1 <= c2) {
@@ -87,41 +100,62 @@ ccp.predict <- function(c1, c2, tt, xnew) {
   pred
 }
 
-rsbst <- function(p, pg) {
+rsbst <- function(p, pg, method = c("ccp", "randomForest")) {
+  # Resubstitution
+  method <- match.arg(method)
   n <- 20
   x <- matrix(rnorm(n*p), nr=p)
   out <- t.testv(x, 10, 10)
   indgene <- order(out$pval)[1:pg]
-  ccp.tr <- ccp.train(x[indgene, , drop = FALSE], out$t[indgene])
-  ccp.pr <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:20]),
-                        out$t[indgene], x[indgene, , drop = FALSE])
+  if (method == "ccp") {
+    ccp.tr <- ccp.train(x[indgene, , drop = FALSE], out$t[indgene])
+    ccp.pr <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:20]),
+                          out$t[indgene], x[indgene, , drop = FALSE])
+  } else {
+    mydf <- cbind(data.frame(t(x[indgene, , drop = FALSE])),
+                  data.frame(y = factor(c(rep(1, 10), rep(2, 10)))))
+    colnames(mydf) <- c(paste0("x", 1:pg), "y")
+    rf <- randomForest::randomForest(y ~ ., data=mydf)
+    ccp.pr <- as.integer(predict(rf, mydf))
+  }
   err <- sum(abs(ccp.pr - c(rep(1, 10), rep(2, 10))))
   err
 }
 
-loocv1 <- function(p, pg) {
+loocv1 <- function(p, pg, method = c("ccp", "randomForest")) {
   # LOOCV after gene selection
+  method <- match.arg(method)
   n <- 20
   x <- matrix(rnorm(n*p), nr=p)
   out <- t.testv(x, 10, 10)
   indgene <- order(out$pval)[1:pg]
+  mydf <- cbind(data.frame(t(x[indgene, , drop = FALSE])),
+                data.frame(y = factor(c(rep(1, 10), rep(2, 10)))))
+  colnames(mydf) <- c(paste0("x", 1:pg), "y")
   ccp.pr <- rep(NA, n)
   for(j in 1:n) {
-    ccp.tr <- ccp.train(x[indgene, -j, drop  = FALSE], out$t[indgene])
-    if (j <= 10) {
-      ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
-                               out$t[indgene], x[indgene, j, drop = F])
-    } else {
-      ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:19]),
-                               out$t[indgene], x[indgene, j, drop = F])
+    if (method == "ccp") {
+      ccp.tr <- ccp.train(x[indgene, -j, drop  = FALSE], out$t[indgene])
+      if (j <= 10) {
+        ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
+                                 out$t[indgene], x[indgene, j, drop = F])
+      } else {
+        ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:19]),
+                                 out$t[indgene], x[indgene, j, drop = F])
+      }
+    } else if (method == "randomForest") {
+      # random forest
+      rf <- randomForest::randomForest(y ~ ., data=mydf[-j,])
+      ccp.pr[j] <- as.integer(predict(rf, mydf[j,]))
     }
   }
   err <- sum(abs(ccp.pr - c(rep(1, 10), rep(2, 10))))
   err
 }
 
-loocv2 <- function(p, pg) {
+loocv2 <- function(p, pg, method = c("ccp", "randomForest")) {
   # LOOCV before gene selection
+  method <- match.arg(method)
   n <- 20
   x <- matrix(rnorm(n*p), nr=p)
   ccp.pr <- rep(NA, n)
@@ -133,13 +167,23 @@ loocv2 <- function(p, pg) {
     }
     out <- t.testv(x[, -j], n1, n2)
     indgene <- order(out$pval)[1:pg]
-    ccp.tr <- ccp.train(x[indgene, -j, drop = FALSE], out$t[indgene])
-    if (j <= 10) {
-      ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
-                               out$t[indgene], x[indgene, j, drop = F])
-    } else {
-      ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:19]),
-                               out$t[indgene], x[indgene, j, drop = F])
+    if (method == "ccp") {
+      # compound covariate
+      ccp.tr <- ccp.train(x[indgene, -j, drop = FALSE], out$t[indgene])
+      if (j <= 10) {
+        ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:9]), mean(ccp.tr[10:19]),
+                                 out$t[indgene], x[indgene, j, drop = F])
+      } else {
+        ccp.pr[j] <- ccp.predict(mean(ccp.tr[1:10]), mean(ccp.tr[11:19]),
+                                 out$t[indgene], x[indgene, j, drop = F])
+      }
+    } else if (method == "randomForest") {
+      # random forest
+      mydf <- cbind(data.frame(t(x[indgene, , drop = FALSE])),
+                    data.frame(y = factor(c(rep(1, 10), rep(2, 10)))))
+      colnames(mydf) <- c(paste0("x", 1:pg), "y")
+      rf <- randomForest::randomForest(y ~ ., data=mydf[-j,])
+      ccp.pr[j] <- as.integer(predict(rf, mydf[j,]))
     }
   }
   err <- sum(abs(ccp.pr - c(rep(1, 10), rep(2, 10))))
