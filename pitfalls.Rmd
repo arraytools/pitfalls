@@ -4,6 +4,9 @@ author: "MC Li"
 output:
   pdf_document:
     toc: true
+    toc_depth: 3
+    number_sections: true
+    fig_caption: true
 urlcolor: blue
 ---
 
@@ -11,7 +14,7 @@ urlcolor: blue
 knitr::opts_chunk$set(echo = TRUE, eval = FALSE)
 ```
 
-## One Data Set
+# One Data Set
 
 Goal: Repeat the result from the 
 [paper](https://brb.nci.nih.gov/techreport/JNCICommentary.pdf) published in JNCI 2003.
@@ -105,8 +108,8 @@ err
 # 8
 ```
 
-## Compound Covariate Predictor
-### High Dimensional Case p = 6000, pg = 10
+# Compound Covariate Predictor
+## High Dimensional Case p = 6000, pg = 10
 
 We can wrap the above scripts into 3 functions: rsbst(), loocv1() and loocv2(). rsbst() represents resubstitution method, loocv1() denotes LOOCV after gene selection and loocv2() denotes LOOCV before gene selection.
 
@@ -181,7 +184,7 @@ Note that under the null hypothesis, the estimated error rates for simulated dat
 * LOOCV after gene selection does little to correct the bias, with 97% (=1946/2000) of simulated datasets still resulting in zero misclassifications.
 
 
-### Low Dimension Case p=5, pg=1
+## Low Dimension Case p=5, pg=1
 
 ```{r}
 source("pitfalls.R")
@@ -229,7 +232,7 @@ dev.off()
 It is strange the LOOCV before gene selection method is also biased.
 
 
-### Low Dimension Case p=5, pg=5
+## Low Dimension Case p=5, pg=5
 
 Let's see what happened if the number of total genes equals to the number of selected genes.
 
@@ -276,9 +279,9 @@ dev.off()
 
 ![](lowdim5.png)
 
-## Random Forest Predictor
+# Random Forest Predictor
 
-### High Dimensional Case p = 6000, pg = 10
+## High Dimensional Case p = 6000, pg = 10
 
 ```{r}
 source("pitfalls.R")
@@ -326,7 +329,7 @@ dev.off()
 
 ![](outall_rf.png)
 
-### Low Dimension Case p=5, pg=1
+## Low Dimension Case p=5, pg=1
 
 ```{r}
 source("pitfalls.R")
@@ -371,7 +374,7 @@ dev.off()
 
 ![](lowdim1_rf.png)
 
-### Low Dimension Case p=5, pg=5
+## Low Dimension Case p=5, pg=5
 
 ```{r}
 source("pitfalls.R")
