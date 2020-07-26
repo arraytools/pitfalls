@@ -2,8 +2,9 @@
 title: "Pitfalls in the use of DNA Microarray Data for Diagnostic and Prognostic Classification, R. Simon et al 2003"
 author: "MC Li"
 output:
-  html_document:
+  pdf_document:
     toc: true
+urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
